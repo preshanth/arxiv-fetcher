@@ -1,0 +1,152 @@
+# ArXiv Astro-ph Daily Fetcher Configuration
+# Preshanth's Research Interests - Radio Astronomy Focus
+
+# Primary arXiv categories to query
+arxiv_categories:
+  - "astro-ph.IM"  # Instrumentation and Methods for Astrophysics
+  - "astro-ph.GA"  # Astrophysics of Galaxies
+  - "astro-ph.CO"  # Cosmology and Nongalactic Astrophysics
+  - "astro-ph.HE"  # High Energy Astrophysical Phenomena
+
+# User's active research tags (hierarchical)
+active_tags:
+  # Broad categories (at least one should match)
+  primary_categories:
+    - extragalactic
+    - instrumentation
+    - galactic
+  
+  # Specific research interests (match these for high relevance)
+  facilities:
+    - vla
+    - meerkat
+    - alma
+    - ska
+    - gmrt
+    - lofar
+    - askap
+    - wsrt
+  
+  techniques:
+    - radio_interferometry
+    - interferometry
+    - polarimetry
+    - spectroscopy
+    - imaging
+    - widefield_imaging
+  
+  data_processing:
+    - calibration
+    - rfi_mitigation
+    - rfi
+    - flagging
+    - pipeline
+    - data_reduction
+    - imaging_algorithms
+  
+  computational:
+    - machine_learning
+    - deep_learning
+    - gpu_acceleration
+    - gpu
+    - distributed_computing
+    - parallel_processing
+    - algorithms
+  
+  science_topics:
+    - cosmic_magnetism
+    - faraday_rotation
+    - absorption_lines
+    - hi_surveys
+    - continuum_emission
+    - molecular_lines
+    - radio_galaxies
+    - quasars
+
+# Keyword patterns for fast text matching
+keyword_patterns:
+  radio_interferometry:
+    - "interferometry"
+    - "interferometer"
+    - "baseline"
+    - "visibility"
+    - "uv-plane"
+    - "synthesis imaging"
+  
+  rfi_mitigation:
+    - "rfi"
+    - "radio frequency interference"
+    - "interference mitigation"
+    - "rflag"
+    - "aoflagger"
+    - "interference excision"
+  
+  polarimetry:
+    - "polarimetry"
+    - "polarization"
+    - "stokes"
+    - "faraday"
+    - "rotation measure"
+    - "polarimetric"
+  
+  calibration:
+    - "calibration"
+    - "self-calibration"
+    - "gain calibration"
+    - "bandpass"
+    - "flux calibration"
+    - "phase calibration"
+  
+  machine_learning:
+    - "machine learning"
+    - "deep learning"
+    - "neural network"
+    - "convolutional"
+    - "transformer"
+    - "random forest"
+    - "classification"
+  
+  gpu_computing:
+    - "gpu"
+    - "cuda"
+    - "graphics processing"
+    - "gpu acceleration"
+    - "parallel computing"
+
+# Filtering thresholds
+filtering:
+  # Stage 2: Keyword matching scores
+  keyword_score_high: 3      # Auto-accept if >= this many tag matches
+  keyword_score_medium: 1    # Send to LLM if >= this (and < high)
+  keyword_score_low: 0       # Reject if score is this
+  
+  # Stage 3: LLM validation (optional, can disable)
+  use_llm_validation: true   # Set to false to skip LLM stage
+  llm_validation_threshold: 0.7  # Confidence threshold for LLM
+  
+  # Maximum papers to process per day
+  max_papers_per_day: 20
+  
+  # Date range
+  days_to_fetch: 1  # Fetch last N days of papers
+
+# Ollama configuration
+ollama:
+  base_url: "http://localhost:11434"
+  
+  # Model for tag validation (fast, binary classification)
+  classifier_model: "llama3.2:latest"
+  
+  # Model for summarization (more capable)
+  summarizer_model: "tonyai-deepresearch:latest"
+  
+  # Generation parameters
+  temperature: 0.1  # Low for classification, higher for summaries
+  max_tokens: 4096
+
+# Output configuration
+output:
+  save_filtered_papers: true
+  output_dir: "./arxiv_papers"
+  cache_dir: "./arxiv_cache"
+  log_filtering_decisions: true
