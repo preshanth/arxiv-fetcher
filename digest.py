@@ -12,7 +12,7 @@ body with the provider's API call.
 import yaml
 from datetime import datetime, timedelta
 
-from db import get_connection, get_verified_papers, get_active_subscribers
+from db import get_connection, get_verified_papers, get_active_subscribers, papers_matching_tags
 
 
 def build_digest_text(papers) -> str:
@@ -35,22 +35,21 @@ def send_digest(config_path: str = "config.yaml", since_hours: int = 24):
     conn = get_connection(config["output"].get("db_path", "arxiv_papers.db"))
 
     since = (datetime.now() - timedelta(hours=since_hours)).isoformat()
-    papers = get_verified_papers(conn, since=since)
+    all_papers = get_verified_papers(conn, since=since)
     subscribers = get_active_subscribers(conn)
 
-    digest_text = build_digest_text(papers)
-
     if not subscribers:
-        print("No active subscribers. Digest would have been:\n")
-        print(digest_text)
+        print("No active subscribers. Digest (unfiltered) would have been:\n")
+        print(build_digest_text(all_papers))
         conn.close()
         return
 
-    print(f"[STUB - not actually sending] Would email {len(subscribers)} subscriber(s):")
-    for email in subscribers:
-        print(f"  -> {email}")
-    print("\n--- Digest content ---\n")
-    print(digest_text)
+    print(f"[STUB - not actually sending] {len(subscribers)} active subscriber(s):\n")
+    for sub in subscribers:
+        matched = papers_matching_tags(all_papers, sub["tags"])
+        print(f"-> {sub['email']} (interests: {sub['tags'] or 'all'})")
+        print(build_digest_text(matched))
+        print()
 
     conn.close()
 

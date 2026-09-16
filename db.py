@@ -56,7 +56,8 @@ END;
 CREATE TABLE IF NOT EXISTS subscribers (
     email TEXT PRIMARY KEY,
     subscribed_at TEXT,
-    active INTEGER DEFAULT 1
+    active INTEGER DEFAULT 1,
+    tags TEXT
 );
 """
 
@@ -124,17 +125,33 @@ def get_verified_papers(conn: sqlite3.Connection, since: Optional[str] = None) -
     return cursor.fetchall()
 
 
-def add_subscriber(conn: sqlite3.Connection, email: str) -> None:
+def add_subscriber(conn: sqlite3.Connection, email: str, tags: Optional[List[str]] = None) -> None:
     conn.execute(
-        "INSERT OR IGNORE INTO subscribers (email, subscribed_at, active) VALUES (?, ?, 1)",
-        (email, datetime.now().isoformat()),
+        "INSERT OR IGNORE INTO subscribers (email, subscribed_at, active, tags) VALUES (?, ?, 1, ?)",
+        (email, datetime.now().isoformat(), ", ".join(tags) if tags else None),
     )
     conn.commit()
 
 
-def get_active_subscribers(conn: sqlite3.Connection) -> List[str]:
-    cursor = conn.execute("SELECT email FROM subscribers WHERE active = 1")
-    return [row["email"] for row in cursor.fetchall()]
+def get_active_subscribers(conn: sqlite3.Connection) -> List[sqlite3.Row]:
+    """Returns rows (not just emails) so callers can read each subscriber's tags."""
+    cursor = conn.execute("SELECT email, tags FROM subscribers WHERE active = 1")
+    return cursor.fetchall()
+
+
+def papers_matching_tags(papers: List[sqlite3.Row], subscriber_tags: Optional[str]) -> List[sqlite3.Row]:
+    """
+    Filter verified papers by a subscriber's tag interests (comma-separated
+    string, as stored in subscribers.tags). No preference set (None/empty)
+    means "send everything" rather than "send nothing".
+    """
+    if not subscriber_tags:
+        return papers
+    interests = {t.strip() for t in subscriber_tags.split(",") if t.strip()}
+    return [
+        p for p in papers
+        if interests & {t.strip() for t in (p["llm_tags"] or "").split(",") if t.strip()}
+    ]
 
 
 if __name__ == "__main__":

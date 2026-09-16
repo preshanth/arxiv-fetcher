@@ -30,8 +30,9 @@ class ArxivFetcher:
     
     def fetch_papers(self, days_back: int = 1) -> List[Dict]:
         """
-        Fetch papers from arXiv from the last N days.
-        Filter by tags - keep anything with score >= 1.
+        Fetch all papers from arXiv from the last N days in the configured
+        categories. No tag-based filtering here - every paper is returned
+        and processed; tag matching decides what gets served later.
         """
         print(f"\nFetching papers from arXiv...")
         print(f"Categories: {', '.join(self.categories)}")
@@ -44,10 +45,14 @@ class ArxivFetcher:
         # Build query for multiple categories
         category_query = " OR ".join([f"cat:{cat}" for cat in self.categories])
         
-        # Query arXiv
+        # Query arXiv. max_results is a hard cap regardless of the date
+        # window below - 200 silently truncated wider windows once every
+        # paper (not just tag-matches) is kept. 2000 comfortably covers
+        # several weeks at the ~48/day measured rate across these 4
+        # categories; revisit if days_back grows much further.
         search = arxiv.Search(
             query=category_query,
-            max_results=200,
+            max_results=2000,
             sort_by=arxiv.SortCriterion.SubmittedDate,
             sort_order=arxiv.SortOrder.Descending
         )
@@ -71,19 +76,19 @@ class ArxivFetcher:
                 'primary_category': result.primary_category
             }
             
-            # Score with tags
+            # Score with tags - kept as metadata only, not a gate. Every
+            # paper in the window is processed; tag matching (keyword score
+            # here, LLM-assigned tags from the full pipeline later) decides
+            # what gets *served* to a given subscriber's interests, not
+            # what gets *processed*. See pipeline.py.
             tag_result = self.tag_matcher.score_paper(
                 paper_data['title'],
                 paper_data['abstract'],
                 paper_data['categories']
             )
-            
-            # Keep if TagMatcher accepted it - a facility mention alone, or
-            # >= keyword_score_medium keyword-pattern hits (see tags.py).
-            if tag_result['decision'] == 'accept':
-                paper_data['tag_score'] = tag_result['score']
-                paper_data['matched_tags'] = list(tag_result['matched_tags'])
-                papers.append(paper_data)
+            paper_data['tag_score'] = tag_result['score']
+            paper_data['matched_tags'] = list(tag_result['matched_tags'])
+            papers.append(paper_data)
         
         # Sort by tag score (highest first)
         papers.sort(key=lambda x: x['tag_score'], reverse=True)
