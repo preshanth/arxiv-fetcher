@@ -23,8 +23,13 @@ def pack_embedding(vector: list) -> bytes:
     return array("f", vector).tobytes()
 
 
-def process_one_paper(paper: dict, tacc: TACCClient, cache_dir: str) -> dict:
-    """Run one paper through parse -> generate -> verify -> (pass) embed."""
+def process_one_paper(paper: dict, tacc: TACCClient, cache_dir: str, max_revisions: int = 2) -> dict:
+    """
+    Run one paper through parse -> generate -> verify -> revise (up to
+    max_revisions times) -> (pass) embed. A revision feeds the verifier's
+    specific objections back to the generator rather than discarding the
+    draft outright on the first failure.
+    """
     row = dict(paper)  # arxiv_id, title, authors, abstract, published, tag_score, matched_tags, ...
 
     print(f"\n{'='*70}\n{paper['title'][:65]}\n{'='*70}")
@@ -37,17 +42,25 @@ def process_one_paper(paper: dict, tacc: TACCClient, cache_dir: str) -> dict:
     row["verifier_model"] = ver_model
 
     draft = tacc.generate(paper, parsed["full_text"], gen_model)
-    row["draft"] = draft
     print(f"  Generated ({gen_model}): {len(draft)} chars")
 
-    key_figure = pick_key_figure(parsed["figures"], draft)
-    row["figure_path"] = key_figure.get("path")
-
     verify_result = tacc.verify(draft, parsed["full_text"], ver_model)
+    attempt = 0
+    while not verify_result["passed"] and attempt < max_revisions:
+        attempt += 1
+        print(f"  Verify attempt {attempt} FAILED - {verify_result['notes'][:100]}")
+        print(f"  Revising ({gen_model})...")
+        draft = tacc.revise(draft, parsed["full_text"], verify_result["notes"], gen_model)
+        verify_result = tacc.verify(draft, parsed["full_text"], ver_model)
+
+    row["draft"] = draft
     row["verified"] = 1 if verify_result["passed"] else 0
     row["verify_notes"] = verify_result["notes"]
     status = "PASSED" if verify_result["passed"] else "FAILED"
-    print(f"  Verified ({ver_model}): {status} - {verify_result['notes'][:100]}")
+    print(f"  Final ({ver_model}) after {attempt} revision(s): {status} - {verify_result['notes'][:100]}")
+
+    key_figure = pick_key_figure(parsed["figures"], draft)
+    row["figure_path"] = key_figure.get("path")
 
     if verify_result["passed"]:
         embedding = tacc.embed(draft)

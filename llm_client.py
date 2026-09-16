@@ -105,10 +105,20 @@ Keep it under 500 words total. Be specific about instruments, facilities, and qu
             "Check every factual claim, number, and attribution in the summary "
             "against the paper text. Respond ONLY with JSON: "
             '{"passed": true/false, "notes": "explanation"}. '
-            "passed=false if the summary states anything not supported by the "
-            "paper text, or misrepresents a result. The notes field MUST be a "
-            "single line: no literal newlines inside the string, use ' | ' to "
-            "separate multiple issues instead."
+            "\n\nTolerate reasonable rounding and approximation: '~63s' for "
+            "62.9s, '~7km' for 7.3km, or 'about 0.99 AUC' for 0.992 are "
+            "CORRECT, not errors - do not fail the summary for these. Also "
+            "tolerate paraphrasing that preserves meaning (e.g. summarizing "
+            "a citation without repeating its exact year format). "
+            "\n\nOnly set passed=false if the summary states a claim, number, "
+            "or attribution that is materially wrong - i.e. a reader would "
+            "draw a different conclusion about the paper's findings, methods, "
+            "or magnitude of a result than they would from the paper itself. "
+            "Order-of-magnitude, direction of an effect, and which "
+            "instrument/method was used are the things that matter; the "
+            "second significant figure of a stated number does not. "
+            "\n\nThe notes field MUST be a single line: no literal newlines "
+            "inside the string, use ' | ' to separate multiple issues instead."
         )
         truncated_text = full_text[:40000]
         user = f"""Paper text:
@@ -132,6 +142,32 @@ Respond with JSON only."""
                 notes = notes_match.group(1).replace("\n", " ").strip() if notes_match else raw[:300]
                 return {"passed": passed_match.group(1).lower() == "true", "notes": notes}
             return {"passed": False, "notes": f"Verifier returned unparseable output: {raw[:300]}"}
+
+    def revise(self, draft: str, full_text: str, verify_notes: str, model: str) -> str:
+        """
+        Ask the generator to correct a draft based on the verifier's specific
+        objections, grounded back in the full paper text (not just patching
+        the flagged sentence blind).
+        """
+        system = (
+            "You are an astronomy writer revising a summary that a fact-checker "
+            "flagged issues in. Fix ONLY the specific issues listed - do not "
+            "rewrite unrelated parts of the summary. Stay grounded strictly in "
+            "the paper text provided. Keep the same section structure and "
+            "roughly the same length as the original draft."
+        )
+        truncated_text = full_text[:40000]
+        user = f"""Paper text:
+{truncated_text}
+
+Original summary:
+{draft}
+
+Fact-checker's issues to fix:
+{verify_notes}
+
+Write the corrected summary."""
+        return self._chat(model, system, user)
 
     def embed(self, text: str) -> List[float]:
         response = self.client.embeddings.create(model=self.embedding_model, input=text[:8000])
