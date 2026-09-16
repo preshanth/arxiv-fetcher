@@ -65,7 +65,17 @@ class TACCClient:
             temperature=self.temperature,
             max_tokens=max_tokens or self.max_tokens,
         )
-        return response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
+        if content is None:
+            # Reasoning models (e.g. gpt-oss-120b) can spend the whole
+            # max_tokens budget on hidden reasoning tokens before emitting
+            # any content, leaving content=None with finish_reason='length'.
+            finish_reason = response.choices[0].finish_reason
+            raise RuntimeError(
+                f"{model} returned empty content (finish_reason={finish_reason}) - "
+                f"likely exhausted max_tokens on reasoning before producing output"
+            )
+        return content.strip()
 
     def generate(self, paper: Dict, full_text: str, model: str) -> str:
         """
@@ -200,7 +210,10 @@ Title: {paper['title']}
 Abstract: {paper['abstract']}
 
 Return the JSON array of applicable tags."""
-        raw = self._chat(model, system, user, max_tokens=256)
+        # 1024 not 256: reasoning models (gpt-oss-120b etc) spend tokens on
+        # hidden reasoning before content, and 256 was observed to starve
+        # the actual JSON output entirely on longer abstracts.
+        raw = self._chat(model, system, user, max_tokens=1024)
         cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         try:
             tags = json.loads(cleaned)

@@ -133,5 +133,11 @@ def run(config_path: str = "config.yaml", days_back: int = 1, max_papers: int = 
 
 
 if __name__ == "__main__":
-    max_papers = int(sys.argv[1]) if len(sys.argv) > 1 else None
-    run(max_papers=max_papers)
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("max_papers", nargs="?", type=int, default=None)
+    parser.add_argument("--days", type=int, default=1, help="Fetch window in days")
+    args = parser.parse_args()
+
+    run(days_back=args.days, max_papers=args.max_papers)
