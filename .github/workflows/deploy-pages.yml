@@ -17,24 +17,19 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Jekyll site
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: docs
-          destination: _site
-
-      - name: Fix _site ownership
-        run: sudo chown -R $USER:$USER _site
-
-      - name: Install Pagefind
-        run: npm install -g pagefind
-
-      - name: Build Pagefind search index
-        run: pagefind --site _site
+      - name: Render site from DB and build with Jekyll + Pagefind
+        run: |
+          distrobox-enter cuda -- bash -c '
+            set -e
+            export PATH="$(ruby -e "puts Gem.user_dir")/bin:$PATH"
+            pixi run python render_site.py
+            jekyll build --source docs --destination _site
+            pagefind --site _site
+          '
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
