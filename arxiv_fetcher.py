@@ -51,9 +51,10 @@ class ArxivFetcher:
             sort_by=arxiv.SortCriterion.SubmittedDate,
             sort_order=arxiv.SortOrder.Descending
         )
-        
+
+        client = arxiv.Client()
         papers = []
-        for result in search.results():
+        for result in client.results(search):
             # Check if within date range
             if result.published.replace(tzinfo=None) < start_date:
                 break

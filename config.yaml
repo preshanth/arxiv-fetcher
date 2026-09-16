@@ -130,18 +130,23 @@ filtering:
   # Date range
   days_to_fetch: 1  # Fetch last N days of papers
 
-# Ollama configuration
-ollama:
-  base_url: "http://localhost:11434"
-  
-  # Model for tag validation (fast, binary classification)
-  classifier_model: "llama3.2:latest"
-  
-  # Model for summarization (more capable)
-  summarizer_model: "tonyai-deepresearch:latest"
-  
-  # Generation parameters
-  temperature: 0.1  # Low for classification, higher for summaries
+# TACC inference endpoint (OpenAI-compatible)
+tacc:
+  base_url: "https://ai.tejas.tacc.utexas.edu"
+  api_key_env: "TACC_API_KEY"   # key is read from this env var, never stored here
+
+  # Pool of models to rotate through for generate/verify roles.
+  # Generator and verifier are picked from this list per paper (verifier != generator).
+  # Confirmed live 2026-09-15; Llama-4-Maverick-17B-128E-Instruct excluded (503 unavailable).
+  models:
+    - "DeepSeek-V3.2"
+    - "Mistral-Large-3-675B-Instruct-2512"
+    - "Qwen3-235B-A22B-Instruct-2507"
+    - "gpt-oss-120b"
+
+  embedding_model: "E5-Mistral-7B-Instruct"
+
+  temperature: 0.2
   max_tokens: 4096
 
 # Output configuration
@@ -150,3 +155,5 @@ output:
   output_dir: "./arxiv_papers"
   cache_dir: "./arxiv_cache"
   log_filtering_decisions: true
+  db_path: "./arxiv_papers.db"
+  docs_dir: "./docs"
