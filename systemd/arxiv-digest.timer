@@ -1,0 +1,10 @@
+[Unit]
+Description=Run arxiv-digest nightly, off-peak on TACC
+
+[Timer]
+# 03:00 local time - adjust to whatever TACC considers off-peak.
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

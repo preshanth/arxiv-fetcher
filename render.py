@@ -38,6 +38,7 @@ def render_paper(paper: sqlite3.Row, docs_dir: str = "docs") -> str:
 
     content = f"""---
 title: "{paper['title']}"
+layout: page
 arxiv_id: "{arxiv_id}"
 published: "{paper['published']}"
 ---

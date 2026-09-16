@@ -1,0 +1,6 @@
+name = "arxiv-digest-embed-query"
+main = "embed-query.js"
+compatibility_date = "2026-09-16"
+
+# Set the secret out-of-band, never here:
+#   wrangler secret put TACC_API_KEY

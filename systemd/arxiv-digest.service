@@ -1,0 +1,13 @@
+[Unit]
+Description=ArXiv astronomy digest pipeline
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/home/pjaganna/Software/arxiv-fetcher
+# pixi run resolves the project env; EnvironmentFile supplies TACC_API_KEY
+# from .env without it ever appearing in this unit file or `systemctl status`.
+EnvironmentFile=/var/home/pjaganna/Software/arxiv-fetcher/.env
+ExecStart=/home/pjaganna/.pixi/bin/pixi run python pipeline.py
+ExecStartPost=/home/pjaganna/.pixi/bin/pixi run python site_index.py
+ExecStartPost=/home/pjaganna/.pixi/bin/pixi run python export_vectors.py
+ExecStartPost=/home/pjaganna/.pixi/bin/pixi run python digest.py

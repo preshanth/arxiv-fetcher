@@ -1,0 +1,4 @@
+theme: minima
+title: Daily Astronomy Paper Digest
+description: Automated, fact-checked daily summaries of astro-ph papers
+markdown: kramdown
