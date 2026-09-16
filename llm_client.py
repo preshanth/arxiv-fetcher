@@ -50,6 +50,11 @@ class TACCClient:
         self.max_tokens = tacc_config.get("max_tokens", 4096)
         self.rotator = ModelRotator(tacc_config["models"])
 
+        self.tag_vocabulary = sorted({
+            tag for tags in config["active_tags"].values() if isinstance(tags, list)
+            for tag in tags
+        })
+
     def _chat(self, model: str, system: str, user: str, max_tokens: int = None) -> str:
         response = self.client.chat.completions.create(
             model=model,
@@ -168,6 +173,43 @@ Fact-checker's issues to fix:
 
 Write the corrected summary."""
         return self._chat(model, system, user)
+
+    def classify_tags(self, paper: Dict, model: str) -> List[str]:
+        """
+        Semantic tag assignment from the abstract, restricted to the
+        controlled vocabulary in config.yaml's active_tags. This is the
+        "smart" tagging layer for serving papers by interest - the keyword
+        prefilter in tags.py decides accept/reject cheaply across the full
+        daily arXiv volume, this runs only on papers that already passed
+        that filter, and reads meaning rather than matching bare words (so
+        it won't tag a chemistry "polarization" paper as radio polarimetry).
+        """
+        system = (
+            "You classify astronomy paper abstracts against a fixed tag "
+            "vocabulary. Read the title and abstract, then return ONLY the "
+            "tags from the provided vocabulary that genuinely apply to this "
+            "paper's actual topic - not tags that merely share a word with "
+            "the abstract. Respond ONLY with a JSON array of strings, e.g. "
+            '["vla", "calibration"]. Return an empty array [] if nothing in '
+            "the vocabulary genuinely applies. Do not invent tags outside "
+            "the given vocabulary."
+        )
+        user = f"""Vocabulary: {json.dumps(self.tag_vocabulary)}
+
+Title: {paper['title']}
+Abstract: {paper['abstract']}
+
+Return the JSON array of applicable tags."""
+        raw = self._chat(model, system, user, max_tokens=256)
+        cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        try:
+            tags = json.loads(cleaned)
+        except json.JSONDecodeError:
+            match = re.search(r"\[.*\]", cleaned, re.DOTALL)
+            tags = json.loads(match.group(0)) if match else []
+
+        vocabulary_set = set(self.tag_vocabulary)
+        return [t for t in tags if t in vocabulary_set]
 
     def embed(self, text: str) -> List[float]:
         response = self.client.embeddings.create(model=self.embedding_model, input=text[:8000])

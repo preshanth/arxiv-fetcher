@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS papers (
     published TEXT,
     tag_score INTEGER,
     matched_tags TEXT,
+    llm_tags TEXT,
     draft TEXT,
     verified INTEGER,
     verify_notes TEXT,
@@ -75,7 +76,7 @@ def upsert_paper(conn: sqlite3.Connection, paper: Dict) -> None:
     """
     columns = [
         "arxiv_id", "title", "authors", "abstract", "published",
-        "tag_score", "matched_tags", "draft", "verified", "verify_notes",
+        "tag_score", "matched_tags", "llm_tags", "draft", "verified", "verify_notes",
         "generator_model", "verifier_model", "figure_path", "markdown_path",
         "embedding", "processed_at",
     ]
@@ -86,6 +87,8 @@ def upsert_paper(conn: sqlite3.Connection, paper: Dict) -> None:
         row["authors"] = ", ".join(row["authors"])
     if isinstance(row.get("matched_tags"), list):
         row["matched_tags"] = ", ".join(row["matched_tags"])
+    if isinstance(row.get("llm_tags"), list):
+        row["llm_tags"] = ", ".join(row["llm_tags"])
 
     placeholders = ", ".join(f":{col}" for col in columns)
     col_list = ", ".join(columns)

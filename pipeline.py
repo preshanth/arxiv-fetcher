@@ -41,6 +41,10 @@ def process_one_paper(paper: dict, tacc: TACCClient, cache_dir: str, max_revisio
     row["generator_model"] = gen_model
     row["verifier_model"] = ver_model
 
+    llm_tags = tacc.classify_tags(paper, gen_model)
+    row["llm_tags"] = llm_tags
+    print(f"  Tags ({gen_model}): {llm_tags}")
+
     draft = tacc.generate(paper, parsed["full_text"], gen_model)
     print(f"  Generated ({gen_model}): {len(draft)} chars")
 
@@ -76,7 +80,6 @@ def run(config_path: str = "config.yaml", days_back: int = 1, max_papers: int = 
         config = yaml.safe_load(f)
 
     cache_dir = config["output"]["cache_dir"]
-    max_papers = max_papers or config["filtering"]["max_papers_per_day"]
 
     print("Step 1: Fetching and tag-filtering papers...")
     fetcher = ArxivFetcher(config_path)
@@ -86,7 +89,10 @@ def run(config_path: str = "config.yaml", days_back: int = 1, max_papers: int = 
         print("No papers matched. Exiting.")
         return
 
-    papers = papers[:max_papers]
+    # No artificial cap by default - process everything the tag filter
+    # accepted. max_papers is an explicit opt-in (e.g. for a quick test run).
+    if max_papers:
+        papers = papers[:max_papers]
     print(f"\nStep 2: Processing {len(papers)} papers through generate/verify pipeline...")
 
     tacc = TACCClient(config_path)

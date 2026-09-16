@@ -83,11 +83,16 @@ keyword_patterns:
   
   polarimetry:
     - "polarimetry"
-    - "polarization"
+    - "polarimetric"
     - "stokes"
     - "faraday"
     - "rotation measure"
-    - "polarimetric"
+    - "linear polarization"
+    - "circular polarization"
+    - "radio polarization"
+    # NOTE: bare "polarization" removed - matches unrelated physics/chemistry
+    # contexts (e.g. electronic/dielectric polarization) far more often than
+    # radio polarimetry. Caught 2026-09-16 on a chemistry DFT paper.
   
   calibration:
     - "calibration"
@@ -104,7 +109,8 @@ keyword_patterns:
     - "convolutional"
     - "transformer"
     - "random forest"
-    - "classification"
+    # NOTE: bare "classification" removed - matches any classification task
+    # (galaxy morphology, spectral type, etc), not specifically ML/DL usage.
   
   gpu_computing:
     - "gpu"
@@ -115,18 +121,12 @@ keyword_patterns:
 
 # Filtering thresholds
 filtering:
-  # Stage 2: Keyword matching scores
-  keyword_score_high: 3      # Auto-accept if >= this many tag matches
-  keyword_score_medium: 1    # Send to LLM if >= this (and < high)
-  keyword_score_low: 0       # Reject if score is this
-  
-  # Stage 3: LLM validation (optional, can disable)
-  use_llm_validation: true   # Set to false to skip LLM stage
-  llm_validation_threshold: 0.7  # Confidence threshold for LLM
-  
-  # Maximum papers to process per day
-  max_papers_per_day: 20
-  
+  # A facility mention (VLA, MeerKAT, etc.) accepts a paper on its own -
+  # it's a strong, low-false-positive signal. Keyword-pattern matches alone
+  # need at least this many hits, since single generic keywords (e.g. a bare
+  # "polarization" match) are common false positives outside radio astronomy.
+  keyword_score_medium: 2
+
   # Date range
   days_to_fetch: 1  # Fetch last N days of papers
 

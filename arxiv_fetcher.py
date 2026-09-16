@@ -78,8 +78,9 @@ class ArxivFetcher:
                 paper_data['categories']
             )
             
-            # Keep if has ANY tag match (score >= 1)
-            if tag_result['score'] >= 1:
+            # Keep if TagMatcher accepted it - a facility mention alone, or
+            # >= keyword_score_medium keyword-pattern hits (see tags.py).
+            if tag_result['decision'] == 'accept':
                 paper_data['tag_score'] = tag_result['score']
                 paper_data['matched_tags'] = list(tag_result['matched_tags'])
                 papers.append(paper_data)

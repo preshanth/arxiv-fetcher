@@ -52,52 +52,56 @@ class TagMatcher:
     def score_paper(self, title: str, abstract: str, arxiv_categories: List[str]) -> Dict:
         """
         Score a paper based on tag matches.
-        
+
+        A facility mention (VLA, MeerKAT, etc.) is a strong signal on its
+        own and accepts the paper outright. Keyword-pattern matches alone
+        are weaker - single generic words (e.g. "polarization" appearing in
+        an unrelated chemistry/optics context) are common false positives,
+        so keyword-only matches require >= keyword_score_medium hits before
+        accepting.
+
         Returns:
             dict with:
                 - score: int (number of matching tags)
                 - matched_tags: set of matched tag categories
-                - decision: 'accept', 'llm_validate', or 'reject'
+                - decision: 'accept' or 'reject'
         """
         # Combine text for matching
         text = f"{title} {abstract}"
-        
+
         # Extract keyword matches
-        matched_tags = self.extract_keywords(text)
-        
-        # Check for facility name matches (high priority)
+        keyword_matches = self.extract_keywords(text)
+
+        # Check for facility name matches (strong signal, accepts alone)
         facility_matches = self._check_facilities(text)
-        matched_tags.update(facility_matches)
-        
-        # Calculate score
+
+        matched_tags = keyword_matches | facility_matches
         score = len(matched_tags)
-        
-        # Determine decision based on thresholds
-        if score >= self.thresholds['keyword_score_high']:
+
+        if facility_matches or len(keyword_matches) >= self.thresholds['keyword_score_medium']:
             decision = 'accept'
-        elif score >= self.thresholds['keyword_score_medium']:
-            decision = 'llm_validate' if self.thresholds['use_llm_validation'] else 'accept'
         else:
             decision = 'reject'
-        
+
         return {
             'score': score,
             'matched_tags': matched_tags,
             'decision': decision,
             'arxiv_categories': arxiv_categories
         }
-    
+
     def _check_facilities(self, text: str) -> Set[str]:
-        """Check for specific facility mentions."""
-        text_upper = text.upper()
+        """Check for specific facility mentions, as whole words only (avoids
+        e.g. 'ska' matching inside 'Alaska')."""
         facilities = self.active_tags.get('facilities', [])
-        
+
         matched = set()
         for facility in facilities:
-            # Check for facility name (case-insensitive)
-            if facility.upper() in text_upper:
+            # Word-boundary match, case-insensitive - a naive substring check
+            # would match "ska" inside "Alaska" or "Nebraska".
+            if re.search(r'\b' + re.escape(facility) + r'\b', text, re.IGNORECASE):
                 matched.add(f"facility_{facility}")
-        
+
         return matched
     
     def get_tag_summary(self) -> str:
